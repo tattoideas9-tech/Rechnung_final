@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rechnung Generator (Vorlage)</title>
+  <style>
+    :root{
+      --grey:#eeeeee;
+      --text:#111;
+      --muted:#444;
+    }
+    body{
+      margin:0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:#f5f5f5;
+      color:var(--text);
+    }
+
+    /* ===== Editor (nur am Bildschirm) ===== */
+    .wrap{
+      max-width: 1180px;
+      margin: 20px auto;
+      padding: 0 14px;
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      align-items:start;
+    }
+    .panel{
+      background:#fff;
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    }
+    .panel h2{
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+    label{
+      display:block;
+      font-size: 12px;
+      color:#666;
+      margin: 10px 0 6px;
+    }
+    input, textarea{
+      width:100%;
+      box-sizing:border-box;
+      border:1px solid #ddd;
+      border-radius: 9px;
+      padding: 9px 10px;
+      font-size: 14px;
+      outline:none;
+    }
+    textarea{ min-height: 120px; resize: vertical; }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .btn{
+      width:100%;
+      margin-top: 12px;
+      background:#111;
+      color:#fff;
+      border:0;
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-weight: 700;
+      cursor:pointer;
+    }
+    .hint{
+      margin-top: 10px;
+      font-size: 12px;
+      color:#666;
+      line-height: 1.35;
+    }
+
+    /* ===== A4 Seite ===== */
+    .paper{
+      background:#fff;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .page{
+      width:210mm;
+      min-height:297mm;
+      box-sizing:border-box;
+      padding: 18mm 18mm 16mm;
+      display:flex;
+      flex-direction:column;
+      position:relative;
+    }
+
+    /* Kopfzeile (zentriert) */
+    .topline{
+      text-align:center;
+      font-size: 11px;
+      color:#111;
+      margin-top: 2mm;
+      margin-bottom: 10mm;
+    }
+
+    .addr-meta{
+      display:flex;
+      justify-content: space-between;
+      gap: 20mm;
+      align-items:flex-start;
+      margin-bottom: 10mm;
+    }
+    .addr-left{
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    .meta-right{
+      min-width: 78mm;
+      font-size: 11px;
+      line-height: 1.6;
+      color:#111;
+    }
+    .meta-right .head{
+      display:flex;
+      justify-content: space-between;
+      align-items:baseline;
+      margin-bottom: 3mm;
+    }
+    .meta-right .head .label{
+      font-size: 18px;
+      font-weight: 400;
+      color:#111;
+    }
+    .meta-right .head .val{
+      font-size: 18px;
+      font-weight: 400;
+      color:#111;
+    }
+    .meta-grid{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      column-gap: 10mm;
+      row-gap: 2px;
+    }
+    .meta-grid .k{
+      color:#111;
+      opacity:.9;
+    }
+    .meta-grid .v{
+      text-align:right;
+      color:#111;
+    }
+
+    /* Titel */
+    .title{
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 8mm 0;
+    }
+
+    .salute{
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 0 0 10mm 0;
+    }
+
+    /* Tabelle */
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th{
+      background: var(--grey);
+      padding: 8px 8px;
+      text-align:left;
+      font-weight: 700;
+    }
+    tbody td{
+      padding: 8px 8px;
+      vertical-align: top;
+    }
+    .col-pos{ width: 8%; }
+    .col-desc{ width: 52%; }
+    .col-qty{ width: 13%; }
+    .col-unit{ width: 13%; }
+    .col-total{ width: 14%; }
+
+    .num{ text-align:right; white-space:nowrap; }
+    .desc b{ font-weight:700; }
+    .desc .sub{ margin-top: 6px; }
+    .desc .subline{ margin-top: 6px; }
+
+    /* Totals block */
+    .totals{
+      width:100%;
+      margin-top: 12mm;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .totals td{
+      padding: 8px 10px;
+    }
+    .totals tr:nth-child(odd) td{
+      background: var(--grey);
+    }
+    .totals .label{ text-align:left; }
+    .totals .value{ text-align:right; white-space:nowrap; }
+    .totals .gross td{
+      font-weight: 700;
+    }
+
+    /* Textblöcke */
+    .block{
+      margin-top: 10mm;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .block p{ margin: 0 0 6mm 0; }
+
+    .sig{
+      margin-top: 6mm;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* Seitenzahl */
+    .pageno{
+      margin-top:auto;
+      font-size: 11px;
+      color:#111;
+      text-align:right;
+      padding-top: 6mm;
+    }
+
+    /* Fußzeile */
+    .footer{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 10mm;
+      font-size: 11px;
+      line-height: 1.35;
+      margin-top: 6mm;
+      padding-top: 6mm;
+      border-top: 1px solid #fff; /* im Original quasi "unsichtbar" */
+      color:#111;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .footer div{ white-space: pre-wrap; }
+
+    /* IBAN Fix */
+    .iban-nowrap{
+      white-space: nowrap !important;
+      word-break: keep-all !important;
+    }
+
+    /* Print */
+    @page { size: A4; margin: 0; }
+    @media print{
+      body{ background:#fff; }
+      .wrap{ display:block; margin:0; padding:0; }
+      .panel{ display:none; }
+      .paper{ box-shadow:none; border-radius:0; overflow:visible; }
+
+      /* iOS/Safari: Links nicht blau/unterstrichen */
+      a, a:visited, a:hover, a:active{
+        color:#111 !important;
+        text-decoration:none !important;
+      }
+      html, body{
+        -webkit-text-size-adjust: 100%;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      /* >>> HARD-FIX: alles minimal kleiner drucken, damit es garantiert 1 Seite bleibt <<< */
+      .page{
+        padding: 14mm 14mm 12mm;   /* weniger Innenabstand */
+        transform: scale(0.94);    /* alles etwas kleiner */
+        transform-origin: top left;
+        width: 210mm;
+      }
+
+      /* zusätzliche Platz-Optimierung */
+      .topline{ margin-bottom: 8mm; }
+      .addr-meta{ margin-bottom: 8mm; }
+      .salute{ margin-bottom: 8mm; }
+      .totals{ margin-top: 10mm; }
+      .block{ margin-top: 7mm; }
+      .block p{ margin: 0 0 4mm 0; }
+      .sig{ margin-top: 0mm; }
+
+      .pageno{ padding-top: 3mm; font-size: 10px; }
+
+      .footer{
+        margin-top: 3mm;
+        padding-top: 3mm;
+        gap: 8mm;
+        font-size: 10px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- Editor -->
+    <div class="panel">
+      <h2>Änderbare Felder</h2>
+
+      <label>Rechnungsnummer</label>
+      <input id="invoiceNo" value="RE-1003" />
+
+      <div class="row">
+        <div>
+          <label>Rechnungsdatum</label>
+          <input id="invoiceDate" placeholder="TT.MM.JJJJ" />
+        </div>
+        <div>
+          <label>Lieferdatum</label>
+          <input id="deliveryDate" placeholder="TT.MM.JJJJ" />
+        </div>
+      </div>
+
+      <label>Kundennummer</label>
+      <input id="customerNo" value="1006" />
+
+      <label>Anzahl Personen</label>
+      <input id="persons" type="number" value="3" />
+
+      <label>Adresse des Kunden (mehrzeilig)</label>
+      <textarea id="customerAddress">PK ELECTRO TECH D.O.O.
+Dravi 6
+2000 Maribor
+SI25562525</textarea>
+
+      <div class="row">
+        <div>
+          <label>Mietzeitraum – Start</label>
+          <input id="rentStart" type="date" />
+        </div>
+        <div>
+          <label>Mietzeitraum – Ende</label>
+          <input id="rentEnd" type="date" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Preis pro Tag (EUR)</label>
+          <input id="pricePerDay" type="number" step="0.01" value="70.00" />
+        </div>
+        <div>
+          <label>USt (%)</label>
+          <input id="vatRate" type="number" step="0.01" value="7" />
+        </div>
+      </div>
+
+      <button class="btn" id="printBtn">PDF erstellen</button>
+
+      <div class="hint">
+        Tage werden wie in deiner Rechnung gerechnet: <b>Ende − Start</b> (01.03–15.03 = 14 Tage).<br/>
+        Tipp: Im Druckdialog „Als PDF speichern“ wählen.
+      </div>
+    </div>
+
+    <!-- A4 Vorlage -->
+    <div class="paper">
+      <div class="page">
+
+        <div class="topline">Marcel Offermann - Kehrhüttenstraße 133 - 74078 Heilbronn</div>
+
+        <div class="addr-meta">
+          <div class="addr-left" id="pCustomerAddress"></div>
+
+          <div class="meta-right">
+            <div class="head">
+              <div class="label">Rechnungs-Nr.</div>
+              <div class="val" id="pInvoiceNoTop"></div>
+            </div>
+
+            <div class="meta-grid">
+              <div class="k">Rechnungsdatum</div><div class="v" id="pInvoiceDate"></div>
+              <div class="k">Lieferdatum</div><div class="v" id="pDeliveryDate"></div>
+              <div class="k" style="margin-top:6px;">Ihre Kundennummer</div><div class="v" id="pCustomerNo" style="margin-top:6px;"></div>
+              <div class="k">Ihr Ansprechpartner</div><div class="v">Marcel Offermann</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="title">Rechnungs Nr. <span id="pInvoiceNoTitle"></span></div>
+
+        <div class="salute">
+          <div>Sehr geehrte Damen und Herren,</div><br>
+          <div>vielen Dank für Ihren Auftrag und das damit verbundene Vertrauen! Hiermit stelle ich Ihnen die folgenden<br>
+          Leistungen in Rechnung:</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="col-pos">Pos.</th>
+              <th class="col-desc">Beschreibung</th>
+              <th class="col-qty num">Menge</th>
+              <th class="col-unit num">Einzelpreis</th>
+              <th class="col-total num">Gesamtpreis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1.</td>
+              <td class="desc">
+                <b>Mietzeitraum</b>
+                <div class="sub" id="pRentRange"></div>
+                <div class="subline">Anzahl Personen = <span id="pPersons"></span></div>
+              </td>
+              <td class="num">
+                <div id="pDays"></div>
+                <div style="margin-top:6px;">Tag(e)</div>
+              </td>
+              <td class="num"><span id="pPricePerDay"></span> EUR</td>
+              <td class="num"><span id="pNet"></span> EUR</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="totals">
+          <tr>
+            <td class="label">Gesamtbetrag netto</td>
+            <td class="value"><span id="pNet2"></span> EUR</td>
+          </tr>
+          <tr>
+            <td class="label">Umsatzsteuer <span id="pVatRate"></span>%</td>
+            <td class="value"><span id="pVat"></span> EUR</td>
+          </tr>
+          <tr class="gross">
+            <td class="label">Gesamtbetrag brutto</td>
+            <td class="value"><span id="pGross"></span> EUR</td>
+          </tr>
+        </table>
+
+        <div class="block">
+          <p><b>Zahlungsbedingungen:</b> Zahlung sofort nach Rechnungseingang ohne Abzüge.</p>
+
+          <p>
+            Bitte überweisen Sie den Rechnungsbetrag unter Angabe der Rechnungsnummer auf das unten angegebene<br>
+            Konto. Der Rechnungsbetrag ist sofort fällig. Ohne Geldeingang kann keine Übergabe erfolgen. Hinweis für<br>
+            ausländische Firmen: <span id="pVatRate2"></span>% USt. können beim Bundeszentralamt für Steuern rückerstattet werden.
+          </p>
+
+          <p>Der Auszug aus der Wohnung hat bis um 10 Uhr zu erfolgen.</p>
+          <p>Bei vorzeitiger Abreise kann keine Rückerstattung erfolgen.</p>
+        </div>
+
+        <div class="sig">
+          Mit freundlichen Grüßen<br><br>
+          Marcel Offermann
+        </div>
+
+        <div class="pageno">1/1</div>
+
+        <div class="footer">
+          <div>Marcel Offermann
+Kehrhüttenstraße 133
+74078 Heilbronn
+Deutschland</div>
+          <div>Tel. 0176 24242236
+E-Mail marcelandreo@icloud.com</div>
+          <div>Steuer-Nr. 65306/55525</div>
+          <div>Bank C24
+<span class="iban-nowrap">IBAN DE58 5002 4024 0014 8403 33</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const nf2 = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function pad2(n){ return String(n).padStart(2,"0"); }
+
+    function formatDateDEFromISO(iso){
+      if(!iso) return "";
+      const [y,m,d] = iso.split("-").map(Number);
+      if(!y || !m || !d) return "";
+      return `${pad2(d)}.${pad2(m)}.${y}`;
+    }
+
+    function daysDiffLikeInvoice(startISO, endISO){
+      if(!startISO || !endISO) return 0;
+      const s = new Date(startISO + "T00:00:00");
+      const e = new Date(endISO + "T00:00:00");
+      const ms = e.getTime() - s.getTime();
+      const d = Math.round(ms / (1000*60*60*24));
+      return Math.max(0, d);
+    }
+
+    function setDefaults(){
+      const now = new Date();
+      const dd = pad2(now.getDate());
+      const mm = pad2(now.getMonth()+1);
+      const yy = now.getFullYear();
+      if(!$("invoiceDate").value) $("invoiceDate").value = `${dd}.${mm}.${yy}`;
+      if(!$("deliveryDate").value) $("deliveryDate").value = `${dd}.${mm}.${yy}`;
+
+      if(!$("rentStart").value) $("rentStart").value = "2026-03-01";
+      if(!$("rentEnd").value) $("rentEnd").value = "2026-03-15";
+    }
+
+    function render(){
+      const invoiceNo = $("invoiceNo").value.trim();
+      const invoiceDate = $("invoiceDate").value.trim();
+      const deliveryDate = $("deliveryDate").value.trim();
+      const customerNo = $("customerNo").value.trim();
+      const customerAddress = $("customerAddress").value;
+
+      const rentStart = $("rentStart").value;
+      const rentEnd = $("rentEnd").value;
+
+      const pricePerDay = Number($("pricePerDay").value || 0);
+      const vatRate = Number($("vatRate").value || 0);
+
+      const days = daysDiffLikeInvoice(rentStart, rentEnd);
+      const net = days * pricePerDay;
+      const vat = net * (vatRate/100);
+      const gross = net + vat;
+
+      $("pCustomerAddress").textContent = customerAddress;
+
+      $("pInvoiceNoTop").textContent = invoiceNo;
+      $("pInvoiceNoTitle").textContent = invoiceNo;
+
+      $("pInvoiceDate").textContent = invoiceDate;
+      $("pDeliveryDate").textContent = deliveryDate;
+      $("pCustomerNo").textContent = customerNo;
+
+      const persons = $("persons").value;
+      $("pPersons").textContent = persons;
+
+      $("pRentRange").textContent = `${formatDateDEFromISO(rentStart)}-${formatDateDEFromISO(rentEnd)}`;
+
+      $("pDays").textContent = nf2.format(days);
+
+      $("pPricePerDay").textContent = nf2.format(pricePerDay);
+      $("pNet").textContent = nf2.format(net);
+      $("pNet2").textContent = nf2.format(net);
+
+      const vr = (Number.isFinite(vatRate) ? vatRate : 0);
+      const vrTxt = (Math.abs(vr - Math.round(vr)) < 1e-9) ? String(Math.round(vr)) : nf2.format(vr);
+      $("pVatRate").textContent = vrTxt;
+      $("pVatRate2").textContent = vrTxt;
+
+      $("pVat").textContent = nf2.format(vat);
+      $("pGross").textContent = nf2.format(gross);
+    }
+
+    ["invoiceNo","invoiceDate","deliveryDate","customerNo","persons","customerAddress","rentStart","rentEnd","pricePerDay","vatRate"]
+      .forEach(id => $(id).addEventListener("input", render));
+
+    $("printBtn").addEventListener("click", () => { render(); window.print(); });
+
+    setDefaults();
+    render();
+  </script>
+</body>
+</html>
